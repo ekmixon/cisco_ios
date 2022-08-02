@@ -25,28 +25,23 @@ class UserManager:
 
     @staticmethod
     def calculate_fingerprint(sshkey):
-        if ' ' in sshkey:
-            keyparts = sshkey.split(' ')
-            keyparts[1] = hashlib.md5(base64.b64decode(keyparts[1])).hexdigest().upper()
-            return ' '.join(keyparts)
-
-        else:
-            return 'ssh-rsa %s' % hashlib.md5(base64.b64decode(sshkey)).hexdigest().upper()
+        if ' ' not in sshkey:
+            return f'ssh-rsa {hashlib.md5(base64.b64decode(sshkey)).hexdigest().upper()}'
+        keyparts = sshkey.split(' ')
+        keyparts[1] = hashlib.md5(base64.b64decode(keyparts[1])).hexdigest().upper()
+        return ' '.join(keyparts)
 
     def _parse_view(self, data):
-        match = re.search(r'view (\S+)', data, re.M)
-        if match:
-            return match.group(1)
+        if match := re.search(r'view (\S+)', data, re.M):
+            return match[1]
 
     def _parse_sshkey(self, data):
-        match = re.search(r'key-hash (\S+ \S+(?: .+)?)$', data, re.M)
-        if match:
-            return match.group(1)
+        if match := re.search(r'key-hash (\S+ \S+(?: .+)?)$', data, re.M):
+            return match[1]
 
     def _parse_privilege(self, data):
-        match = re.search(r'privilege (\S+)', data, re.M)
-        if match:
-            return int(match.group(1))
+        if match := re.search(r'privilege (\S+)', data, re.M):
+            return int(match[1])
 
     def generate_existing_users(self):
         match = re.findall(r'(?:^(?:u|\s{2}u))sername (\S+)', self.__user_config_data, re.M)
@@ -56,7 +51,7 @@ class UserManager:
         existing_users = []
 
         for user in set(match):
-            regex = r'username %s .+$' % user
+            regex = f'username {user} .+$'
             cfg = re.findall(regex, self.__user_config_data, re.M)
             cfg = '\n'.join(cfg)
             sshregex = r'username %s\n\s+key-hash .+$' % user
@@ -72,7 +67,7 @@ class UserManager:
 
             filtered = {k: v for k, v in obj.items() if v is not None}
             obj.clear()
-            obj.update(filtered)
+            obj |= filtered
 
             existing_users.append(obj)
 
@@ -87,7 +82,7 @@ class UserManager:
         have = self.generate_existing_users()
         filtered_users = [x for x in want if x not in have]
 
-        changed = True if len(filtered_users) > 0 else False
+        changed = len(filtered_users) > 0
 
         return changed, filtered_users
 
@@ -96,7 +91,7 @@ class ActionModule(ActionBase):
 
     def run(self, tmp=None, task_vars=None):
         if task_vars is None:
-            task_vars = dict()
+            task_vars = {}
 
         result = super(ActionModule, self).run(tmp, task_vars)
 
@@ -104,7 +99,7 @@ class ActionModule(ActionBase):
             new_users = self._task.args['new_users']
             user_config_data = self._task.args['user_config']
         except KeyError as exc:
-            return {'failed': True, 'msg': 'missing required argument: %s' % exc}
+            return {'failed': True, 'msg': f'missing required argument: {exc}'}
 
         result['changed'], result['stdout'] = UserManager(new_users, user_config_data).filter_users()
 

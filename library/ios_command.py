@@ -158,20 +158,23 @@ def to_lines(stdout):
 
 
 def parse_commands(module, warnings):
-    command = ComplexList(dict(
-        command=dict(key=True),
-        prompt=dict(),
-        answer=dict()
-    ), module)
+    command = ComplexList(
+        dict(command=dict(key=True), prompt={}, answer={}), module
+    )
+
     commands = command(module.params['commands'])
     for item in list(commands):
         configure_type = re.match(r'conf(?:\w*)(?:\s+(\w+))?', item['command'])
-        if module.check_mode:
-            if configure_type and configure_type.group(1) not in ('confirm', 'replace', 'revert', 'network'):
-                module.fail_json(
-                    msg='ios_command does not support running config mode '
-                        'commands.  Please use ios_config instead'
-                )
+        if (
+            module.check_mode
+            and configure_type
+            and configure_type[1]
+            not in ('confirm', 'replace', 'revert', 'network')
+        ):
+            module.fail_json(
+                msg='ios_command does not support running config mode '
+                    'commands.  Please use ios_config instead'
+            )
     return commands
 
 
@@ -188,19 +191,16 @@ def main():
         interval=dict(default=1, type='int')
     )
 
-    argument_spec.update(ios_argument_spec)
+    argument_spec |= ios_argument_spec
 
     module = AnsibleModule(argument_spec=argument_spec,
                            supports_check_mode=True)
 
-    result = {'changed': False}
-
-    warnings = list()
+    warnings = []
     check_args(module, warnings)
     commands = parse_commands(module, warnings)
-    result['warnings'] = warnings
-
-    wait_for = module.params['wait_for'] or list()
+    result = {'changed': False, 'warnings': warnings}
+    wait_for = module.params['wait_for'] or []
     conditionals = [Conditional(c) for c in wait_for]
 
     retries = module.params['retries']
@@ -213,7 +213,7 @@ def main():
         for item in list(conditionals):
             if item(responses):
                 if match == 'any':
-                    conditionals = list()
+                    conditionals = []
                     break
                 conditionals.remove(item)
 
@@ -228,11 +228,12 @@ def main():
         msg = 'One or more conditional statements have not been satisfied'
         module.fail_json(msg=msg, failed_conditions=failed_conditions)
 
-    result.update({
+    result |= {
         'changed': False,
         'stdout': responses,
-        'stdout_lines': list(to_lines(responses))
-    })
+        'stdout_lines': list(to_lines(responses)),
+    }
+
 
     module.exit_json(**result)
 

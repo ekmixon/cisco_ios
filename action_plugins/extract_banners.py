@@ -64,7 +64,7 @@ class ActionModule(ActionBase):
         ''' handler for extract_banners  '''
 
         if task_vars is None:
-            task_vars = dict()
+            task_vars = {}
 
         result = super(ActionModule, self).run(tmp, task_vars)
         del tmp  # tmp no longer has any effect
@@ -89,11 +89,10 @@ class ActionModule(ActionBase):
         banner_meta = []
         for linenum, line in enumerate(config_lines):
             if not found_banner_start:
-                banner_start = re.search(r'^banner\s+(\w+)\s+(.*)', line)
-                if banner_start:
-                    banner_cmd = banner_start.group(1)
+                if banner_start := re.search(r'^banner\s+(\w+)\s+(.*)', line):
+                    banner_cmd = banner_start[1]
                     try:
-                        banner_delimiter = banner_start.group(2)
+                        banner_delimiter = banner_start[2]
                         banner_delimiter = banner_delimiter.strip()
                         banner_delimiter_esc = re.escape(banner_delimiter)
                     except Exception:
@@ -104,9 +103,8 @@ class ActionModule(ActionBase):
 
             if found_banner_start:
                 # Search for delimiter found in current banner start
-                regex = r'%s' % banner_delimiter_esc
-                banner_end = re.search(regex, line)
-                if banner_end:
+                regex = f'{banner_delimiter_esc}'
+                if banner_end := re.search(regex, line):
                     found_banner_start = 0
                     kwargs = {
                         'banner_cmd': banner_cmd,
@@ -119,12 +117,13 @@ class ActionModule(ActionBase):
         # Build banners from extracted data
         banner_lines = []
         for banner in banner_meta:
-            banner_lines.append('banner %s %s' % (banner['banner_cmd'],
-                                banner['banner_delimiter']))
+            banner_lines.append(
+                f"banner {banner['banner_cmd']} {banner['banner_delimiter']}"
+            )
+
             banner_conf_lines = config_lines[banner['banner_start_index'] + 1: banner['banner_end_index']]
-            for index, conf_line in enumerate(banner_conf_lines):
-                banner_lines.append(conf_line)
-            banner_lines.append('%s' % banner['banner_delimiter'])
+            banner_lines.extend(iter(banner_conf_lines))
+            banner_lines.append(f"{banner['banner_delimiter']}")
 
         # Delete banner lines from config
         for banner in banner_meta:

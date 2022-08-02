@@ -18,8 +18,8 @@ INTERFACE_NAMES = {
 
 def expand_interface_name(name):
     match = re.match('([a-zA-Z]*)', name)
-    if match and match.group(1) in INTERFACE_NAMES:
-        matched = match.group(1)
+    if match and match[1] in INTERFACE_NAMES:
+        matched = match[1]
         name = name.replace(matched, INTERFACE_NAMES[matched])
     return name
 

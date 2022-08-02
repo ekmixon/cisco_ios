@@ -48,24 +48,24 @@ class ActionModule(ActionBase):
         try:
             show_acl_output_buffer = self._task.args.get('show_acl_output_buffer')
         except KeyError as exc:
-            return {'failed': True, 'msg': 'missing required argument: %s' % exc}
+            return {'failed': True, 'msg': f'missing required argument: {exc}'}
 
         try:
             parser = self._task.args.get('parser')
         except KeyError as exc:
-            return {'failed': True, 'msg': 'missing required argument: %s' % exc}
+            return {'failed': True, 'msg': f'missing required argument: {exc}'}
 
         try:
             generated_flow_file = self._task.args.get('generated_flow_file')
         except KeyError as exc:
-            return {'failed': True, 'msg': 'missing required argument: %s' % exc}
+            return {'failed': True, 'msg': f'missing required argument: {exc}'}
 
         generated_flow_file = unfrackpath(generated_flow_file)
         dest = generated_flow_file
 
         parser = unfrackpath(parser)
         if not os.path.exists(parser):
-            return {'failed': True, 'msg': 'path: %s does not exist.' % parser}
+            return {'failed': True, 'msg': f'path: {parser} does not exist.'}
         parser_file = parser
 
         pd_json = self._parse_acl_with_textfsm(
@@ -74,7 +74,7 @@ class ActionModule(ActionBase):
             changed = self._write_packet_dict(dest, pd_json)
         except IOError as exc:
             result['failed'] = True
-            result['msg'] = ('Exception received : %s' % exc)
+            result['msg'] = f'Exception received : {exc}'
 
         result['changed'] = changed
         if changed:
